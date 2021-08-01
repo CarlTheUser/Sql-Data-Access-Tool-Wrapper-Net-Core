@@ -1,0 +1,1 @@
+﻿Extend sql providers here (NpgSql, Sqlite, Oledb, db2, etc.)

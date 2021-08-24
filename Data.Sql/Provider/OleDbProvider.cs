@@ -1,39 +1,39 @@
 ﻿using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using System.Data.OleDb;
 using System.Reflection;
 
 namespace Data.Sql.Provider
 {
-    public class SqlServerProvider : ISqlProvider
+    public class OleDbProvider : ISqlProvider
     {
         public string ConnectionString { get; set; } = string.Empty;
 
-        public SqlServerProvider()
+        public OleDbProvider()
         {
 
         }
 
-        public SqlServerProvider(string connectionString)
+        public OleDbProvider(string connectionString)
         {
             ConnectionString = connectionString;
         }
 
         public DbConnection CreateConnection()
         {
-            return new SqlConnection(ConnectionString);
+            return new OleDbConnection(ConnectionString);
         }
 
         public DbConnection CreateOpenedConnection()
         {
-            DbConnection connection = new SqlConnection(ConnectionString);
+            DbConnection connection = new OleDbConnection(ConnectionString);
             connection.Open();
             return connection;
         }
 
         public DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[] inputParams = null, DbParameter[] outputParams = null)
         {
-            SqlCommand cmd = new SqlCommand(commandString) { CommandType = commandType };
+            OleDbCommand cmd = new(commandString) { CommandType = commandType };
             if (inputParams != null && inputParams.Length > 0) cmd.Parameters.AddRange(inputParams);
             if (outputParams != null && outputParams.Length > 0) cmd.Parameters.AddRange(outputParams);
             return cmd;
@@ -51,7 +51,7 @@ namespace Data.Sql.Provider
 
         public DbParameter CreateInputParameter(string parameterName, object value, DbType dbType = DbType.Object)
         {
-            return new SqlParameter
+            return new OleDbParameter
             {
                 ParameterName = parameterName,
                 Value = value ?? DBNull.Value,
@@ -62,7 +62,7 @@ namespace Data.Sql.Provider
 
         public DbParameter CreateInputParameter(InParameterInfo inParameterInfo)
         {
-            return new SqlParameter
+            return new OleDbParameter
             {
                 ParameterName = inParameterInfo.Name,
                 Value = inParameterInfo.Value ?? DBNull.Value,
@@ -73,7 +73,7 @@ namespace Data.Sql.Provider
 
         public DbParameter CreateOutputParameter(string parameterName)
         {
-            return new SqlParameter
+            return new OleDbParameter
             {
                 ParameterName = parameterName,
                 Direction = ParameterDirection.Output
@@ -82,7 +82,7 @@ namespace Data.Sql.Provider
 
         public DbParameter CreateReturnParameter()
         {
-            return new SqlParameter
+            return new OleDbParameter
             {
                 Direction = ParameterDirection.ReturnValue
             };
@@ -98,11 +98,11 @@ namespace Data.Sql.Provider
                     let parameterInfo = property.PropertyType != typeof(InParameterInfo) ? null : property.GetValue(source) as InParameterInfo
 
                     select parameterInfo == null ?
-                    new SqlParameter(parameterPrefix + property.Name, property.GetValue(source) ?? DBNull.Value)
+                    new OleDbParameter(parameterPrefix + property.Name, property.GetValue(source) ?? DBNull.Value)
                     {
                         Direction = ParameterDirection.Input
                     } :
-                    new SqlParameter(parameterPrefix + parameterInfo.Name, parameterInfo.Value ?? DBNull.Value)
+                    new OleDbParameter(parameterPrefix + parameterInfo.Name, parameterInfo.Value ?? DBNull.Value)
                     {
                         Direction = ParameterDirection.Input,
                         DbType = parameterInfo.DbType
@@ -114,7 +114,7 @@ namespace Data.Sql.Provider
             if (source == null) return null;
 
             return (from parameterName in source
-                    select new SqlParameter
+                    select new OleDbParameter
                     {
                         ParameterName = parameterName,
                         Direction = ParameterDirection.Output

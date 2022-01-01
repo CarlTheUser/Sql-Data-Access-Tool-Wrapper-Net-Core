@@ -297,15 +297,15 @@ namespace Data.Sql
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token) where T : class, new()
         {
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
-            using (DbConnection connection = command.Connection = command.Connection ?? _sqlProvider.CreateConnection())
+            using (DbConnection connection = command.Connection ??= _sqlProvider.CreateConnection())
             {
                 try
                 {
                     await connection.OpenAsync(token);
 
-                    using (DbDataReader reader = command.ExecuteReaderAsync(token).Result)
+                    using (DbDataReader reader = await command.ExecuteReaderAsync(token))
                     {
                         while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
                     }
@@ -381,19 +381,27 @@ namespace Data.Sql
 
         public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new()
         {
-            using (DbConnection connection = command.Connection = command.Connection ?? _sqlProvider.CreateConnection())
+            using (DbConnection connection = command.Connection ??= _sqlProvider.CreateConnection())
             {
                 try
                 {
                     await connection.OpenAsync(token);
 
-                    using (DbDataReader reader = command.ExecuteReaderAsync(token).Result)
+                    using (DbDataReader reader = await command.ExecuteReaderAsync(token))
                     {
-                        while (await reader.ReadAsync(token)) await Task.Run(() => iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader)), token);
+                        while (await reader.ReadAsync(token)) 
+                        { 
+                            iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
+                        }
                     }
                 }
                 finally { connection.Close(); }
             }
+        }
+
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken token) where T : class, new()
+        {
+            await IterateAsync(dataMapper, iteratorAction, _sqlProvider.CreateCommand(query), token);
         }
     }
 }

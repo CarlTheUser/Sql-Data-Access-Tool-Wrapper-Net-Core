@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Data.Sql
 {
@@ -335,6 +337,68 @@ namespace Data.Sql
                 reader = command.ExecuteReader();
 
                 while (reader.Read()) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+        }
+
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader? reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+            }
+        }
+
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader? reader = null;
+
+            try
+            {
+                reader = await  command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
             }
             finally
             {

@@ -121,7 +121,7 @@ namespace Data.Sql
 
             List<T> temp;
 
-            IDataReader reader = null;
+            IDataReader? reader = default;
 
             try
             {
@@ -155,7 +155,7 @@ namespace Data.Sql
 
             List<T> temp;
 
-            IDataReader reader = null;
+            IDataReader? reader = null;
 
             try
             {
@@ -187,7 +187,7 @@ namespace Data.Sql
 
             command.Transaction = _dbTransaction;
 
-            IDataReader reader = null;
+            IDataReader? reader = null;
 
             try
             {
@@ -221,7 +221,7 @@ namespace Data.Sql
 
             command.Transaction = _dbTransaction;
 
-            IDataReader reader = null;
+            IDataReader? reader = null;
 
             try
             {
@@ -266,13 +266,126 @@ namespace Data.Sql
 
             command.Transaction = _dbTransaction;
 
-            IDataReader reader = null;
+            IDataReader? reader = null;
 
             try
             {
                 reader = command.ExecuteReader();
 
                 while (reader.Read()) temp.Add(mapper.CreateMappedInstance(reader));
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+
+            return temp;
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            List<T> temp = new();
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader? reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+            }
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            List<T> temp = new List<T>();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader? reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
+            }
+            finally
+            {
+                reader?.Dispose();
+
+                command.Connection = null;
+
+                command.Transaction = null;
+
+                command.Dispose();
+            }
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(DbCommand command, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            return await GetAsync(new ReflectionDataMapper<T>(), command, token);
+        }
+
+        public async Task<IEnumerable<T>> GetAsync<T>(string query, CancellationToken token) where T : class, new()
+        {
+            DisposeCheck();
+
+            List<T> temp = new List<T>();
+
+            IDataMapper<T> mapper = new ReflectionDataMapper<T>();
+
+            DbConnection connection = _dbTransaction.Connection;
+
+            DbCommand command = connection.CreateCommand();
+
+            command.CommandText = query;
+
+            command.Transaction = _dbTransaction;
+
+            DbDataReader? reader = null;
+
+            try
+            {
+                reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) temp.Add(mapper.CreateMappedInstance(reader));
             }
             finally
             {
@@ -298,7 +411,7 @@ namespace Data.Sql
 
             command.Transaction = _dbTransaction;
 
-            DbDataReader reader = null;
+            DbDataReader? reader = null;
 
             try
             {
@@ -330,7 +443,7 @@ namespace Data.Sql
 
             command.Transaction = _dbTransaction;
 
-            DbDataReader reader = null;
+            DbDataReader? reader = null;
 
             try
             {

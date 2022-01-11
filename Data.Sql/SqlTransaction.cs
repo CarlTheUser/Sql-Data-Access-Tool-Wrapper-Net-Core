@@ -615,11 +615,29 @@ namespace Data.Sql
             transactionFinished = true;
         }
 
+        public async Task CommitAsync(CancellationToken token)
+        {
+            DisposeCheck();
+
+            await _dbTransaction.CommitAsync(token);
+
+            transactionFinished = true;
+        }
+
         public void Rollback()
         {
             DisposeCheck();
 
             _dbTransaction.Rollback();
+
+            transactionFinished = true;
+        }
+
+        public async Task RollbackAsync(CancellationToken token)
+        {
+            DisposeCheck();
+
+            await _dbTransaction.RollbackAsync(token);
 
             transactionFinished = true;
         }

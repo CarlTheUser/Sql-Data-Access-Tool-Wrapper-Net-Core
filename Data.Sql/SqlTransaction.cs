@@ -64,17 +64,57 @@ namespace Data.Sql
             }
         }
 
-        public object ExecuteScalar(DbCommand command)
+        public async Task<int> ExecuteNonQueryAsync(DbCommand command, CancellationToken token)
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             command.Connection = connection;
 
             command.Transaction = _dbTransaction;
 
-            object returnValue = command.ExecuteScalar();
+            int affectedRows = await command.ExecuteNonQueryAsync(token);
+
+            command.Transaction = null;
+
+            command.Connection = null;
+
+            return affectedRows;
+        }
+
+        public async Task<int> ExecuteNonQueryAsync(string query, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection!;
+
+            using DbCommand command = connection.CreateCommand();
+
+            command.Transaction = _dbTransaction;
+
+            command.CommandText = query;
+
+            int affectedRows = await command.ExecuteNonQueryAsync(token);
+
+            command.Transaction = null;
+
+            command.Connection = null;
+
+            return affectedRows;
+        }
+
+        public object? ExecuteScalar(DbCommand command)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection!;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            object? returnValue = command.ExecuteScalar();
 
             command.Transaction = null;
 
@@ -83,11 +123,11 @@ namespace Data.Sql
             return returnValue;
         }
 
-        public object ExecuteScalar(string query)
+        public object? ExecuteScalar(string query)
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             using (DbCommand command = connection.CreateCommand())
             {
@@ -95,7 +135,48 @@ namespace Data.Sql
 
                 command.CommandText = query;
 
-                object returnValue = command.ExecuteScalar();
+                object? returnValue = command.ExecuteScalar();
+
+                command.Transaction = null;
+
+                command.Connection = null;
+
+                return returnValue;
+            }
+        }
+
+        public async Task<object?> ExecuteScalarAsync(DbCommand command, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection!;
+
+            command.Connection = connection;
+
+            command.Transaction = _dbTransaction;
+
+            object? returnValue = await command.ExecuteScalarAsync(token);
+
+            command.Transaction = null;
+
+            command.Connection = null;
+
+            return returnValue;
+        }
+
+        public async Task<object?> ExecuteScalarAsync(string query, CancellationToken token)
+        {
+            DisposeCheck();
+
+            DbConnection connection = _dbTransaction.Connection!;
+
+            using (DbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = _dbTransaction;
+
+                command.CommandText = query;
+
+                object? returnValue = await command.ExecuteScalarAsync(token);
 
                 command.Transaction = null;
 
@@ -324,9 +405,9 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 

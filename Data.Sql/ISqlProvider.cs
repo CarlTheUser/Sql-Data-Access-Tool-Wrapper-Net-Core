@@ -7,6 +7,8 @@ namespace Data.Sql
     {
         string ConnectionString { get; set; }
 
+        string ProviderType { get; }
+
         DbConnection CreateConnection();
         DbConnection CreateOpenedConnection();
 

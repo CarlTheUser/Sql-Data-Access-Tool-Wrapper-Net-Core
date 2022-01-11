@@ -11,6 +11,8 @@ namespace Data.Sql.Provider
     {
         public string ConnectionString { get; set; } = string.Empty;
 
+        public string ProviderType => "System.Data.SqlClient";
+
         public SqlServerProvider()
         {
 
@@ -92,7 +94,7 @@ namespace Data.Sql.Provider
 
         public DbParameter[] CreateInputParameters(object source, string parameterPrefix)
         {
-            if (source == null) return null;
+            if (source == null) return Array.Empty<DbParameter>();
 
             PropertyInfo[] properties = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
@@ -113,7 +115,7 @@ namespace Data.Sql.Provider
 
         public DbParameter[] CreateOutputParameters(string[] source)
         {
-            if (source == null) return null;
+            if (source == null) return Array.Empty<DbParameter>();
 
             return (from parameterName in source
                     select new SqlParameter

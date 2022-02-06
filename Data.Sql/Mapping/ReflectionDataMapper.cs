@@ -19,9 +19,7 @@ namespace Data.Sql.Mapping
 
                 //PropertyMappingsCache = new Dictionary<string, PropertyMap>();
 
-                StringComparer comparer = StringComparer.OrdinalIgnoreCase;
-
-                PropertyMappingsCache = new Dictionary<string, PropertyMap>(comparer);
+                PropertyMappingsCache = new Dictionary<string, PropertyMap>(StringComparer.OrdinalIgnoreCase);
 
                 Type type = typeof(T);
 
@@ -31,7 +29,7 @@ namespace Data.Sql.Mapping
                 {
                     var attributes = prop.GetCustomAttributes(false);
 
-                    DataFieldAttribute columnMapping = (DataFieldAttribute)attributes.FirstOrDefault(a => a.GetType() == typeof(DataFieldAttribute));
+                    DataFieldAttribute? columnMapping = (DataFieldAttribute?)attributes.FirstOrDefault(a => a.GetType() == typeof(DataFieldAttribute));
 
                     if (columnMapping == null)
                     {
@@ -53,11 +51,11 @@ namespace Data.Sql.Mapping
 
             int readerColumnCount = reader.FieldCount;
 
-            T item = new T();
+            T item = new();
 
             for (int i = 0; i < readerColumnCount; ++i)
             {
-                if (mappingsCopy.TryGetValue(reader.GetName(i), out PropertyMap propertyMap))
+                if (mappingsCopy.TryGetValue(reader.GetName(i), out PropertyMap? propertyMap))
                 {
                     object value = reader[i];
                     if (value != DBNull.Value) propertyMap.PropertyInfo.SetValue(item, !propertyMap.HasCustomMapping ? value : propertyMap.CustomMapping.Map(value), null);
@@ -71,7 +69,7 @@ namespace Data.Sql.Mapping
         {
             public PropertyInfo PropertyInfo { get; set; }
             public string Column { get; set; }
-            public FieldMapping CustomMapping { get; }
+            public FieldMapping? CustomMapping { get; }
 
             public bool HasCustomMapping { get; }
 
@@ -79,7 +77,7 @@ namespace Data.Sql.Mapping
 
             public PropertyMap(PropertyInfo prop, string column) : this(prop, column, null) { }
 
-            public PropertyMap(PropertyInfo prop, string column, Type customMapperType)
+            public PropertyMap(PropertyInfo prop, string column, Type? customMapperType)
             {
                 PropertyInfo = prop;
                 Column = column;

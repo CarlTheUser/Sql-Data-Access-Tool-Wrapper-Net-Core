@@ -22,7 +22,7 @@ namespace Data.Sql
 
         public DataTable Query(DbCommand command)
         {
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
@@ -40,17 +40,19 @@ namespace Data.Sql
             {
                 command.Connection = null;
                 connection.Close();
+                connection.Dispose();
             }
         }
 
         public DataTable Query(string queryString)
         {
-            return Query(_provider.CreateCommand(queryString));
+            using var command = _provider.CreateCommand(queryString);
+            return Query(command);
         }
 
         public async Task<DataTable> QueryAsync(DbCommand command, CancellationToken token)
         {
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
@@ -63,18 +65,20 @@ namespace Data.Sql
             finally
             {
                 await connection.CloseAsync();
+                await connection.DisposeAsync();
             }
         }
 
         public async Task<DataTable> QueryAsync(string queryString, CancellationToken token)
         {
-            return await QueryAsync(_provider.CreateCommand(queryString), token);
+            using var command = _provider.CreateCommand(queryString);
+            return await QueryAsync(command, token);
         }
 
         public DataTable? GetSchema(string queryString)
         {
-            using DbConnection connection = _provider.CreateConnection();
-            using DbCommand command = connection.CreateCommand();
+            DbConnection connection = _provider.CreateConnection();
+            DbCommand command = connection.CreateCommand();
             command.CommandText = queryString;
             try
             {
@@ -84,60 +88,59 @@ namespace Data.Sql
             }
             finally
             {
+                command.Dispose();
                 connection.Close();
+                connection.Dispose();
             }
         }
 
         public async Task<DataTable?> GetSchemaAsync(string queryString, CancellationToken token)
         {
-            using (DbConnection connection = _provider.CreateConnection())
-            {
-                using DbCommand command = connection.CreateCommand();
-                command.CommandText = queryString;
+            DbConnection connection = _provider.CreateConnection();
+            DbCommand command = connection.CreateCommand();
+            command.CommandText = queryString;
 
-                try
-                {
-                    await connection.OpenAsync(token);
-                    using DbDataReader dr = await command.ExecuteReaderAsync(token);
-                    return await dr.GetSchemaTableAsync(token);
-                }
-                finally
-                {
-                    await connection.CloseAsync();
-                }
+            try
+            {
+                await connection.OpenAsync(token);
+                using DbDataReader dr = await command.ExecuteReaderAsync(token);
+                return await dr.GetSchemaTableAsync(token);
+            }
+            finally
+            {
+                await command.DisposeAsync();
+                await connection.CloseAsync();
+                await connection.DisposeAsync();
             }
         }
 
         public int ExecuteNonQuery(DbCommand command)
         {
-            int affectedRows = 0;
-
-            using (DbConnection connection = _provider.CreateConnection())
+            DbConnection connection = _provider.CreateConnection();
+            command.Connection = connection;
+            try
             {
-                command.Connection = connection;
-                try
-                {
-                    connection.Open();
+                connection.Open();
 
-                    affectedRows = command.ExecuteNonQuery();
-                }
-                finally
-                {
-                    command.Connection = null;
-                    connection.Close();
-                }
+                return command.ExecuteNonQuery();
             }
-            return affectedRows;
+            finally
+            {
+                command.Connection = null;
+                connection.Close();
+                connection.Dispose();
+            }
         }
 
         public int ExecuteNonQuery(string commandString)
         {
-            return ExecuteNonQuery(_provider.CreateCommand(commandString));
+            using var command = _provider.CreateCommand(commandString);
+            return ExecuteNonQuery(command);
         }
 
         public async Task<int> ExecuteNonQueryAsync(DbCommand command, CancellationToken token)
         {
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
@@ -149,17 +152,19 @@ namespace Data.Sql
             {
                 command.Connection = null;
                 await connection.CloseAsync();
+                await connection.DisposeAsync();
             }
         }
 
         public async Task<int> ExecuteNonQueryAsync(string commandString, CancellationToken token)
         {
-            return await ExecuteNonQueryAsync(_provider.CreateCommand(commandString), token);
+            using var command = _provider.CreateCommand(commandString);
+            return await ExecuteNonQueryAsync(command, token);
         }
 
         public object? ExecuteScalar(DbCommand command)
         {
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
@@ -171,17 +176,19 @@ namespace Data.Sql
             {
                 command.Connection = null;
                 connection.Close();
+                connection.Dispose();
             }
         }
 
         public object? ExecuteScalar(string queryString)
         {
-            return ExecuteScalar(_provider.CreateCommand(queryString));
+            using var command = _provider.CreateCommand(queryString);
+            return ExecuteScalar(command);
         }
 
         public async Task<object?> ExecuteScalarAsync(DbCommand command, CancellationToken token)
         {
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
@@ -193,51 +200,55 @@ namespace Data.Sql
             {
                 command.Connection = null;
                 await connection.CloseAsync();
+                await connection.DisposeAsync();
             }
         }
 
         public async Task<object?> ExecuteScalarAsync(string queryString, CancellationToken token)
         {
-            return await ExecuteScalarAsync(_provider.CreateCommand(queryString), token);
+            using var command = _provider.CreateCommand(queryString);
+            return await ExecuteScalarAsync(command, token);
         }
 
         public void Transact(IsolationLevel isolationLevel, Queue<Action<DbCommand>> commandActions, Action<string> onCommandFailed)
         {
-            if (commandActions.FirstOrDefault() == null) return;
+            if (!commandActions.Any()) return;
 
-            using (DbConnection connection = _provider.CreateConnection())
+            DbConnection connection = _provider.CreateConnection();
+
+            connection.Open();
+
+            DbCommand command = connection.CreateCommand();
+
+            DbTransaction transaction = connection.BeginTransaction(isolationLevel);
+
+            command.Transaction = transaction;
+
+            try
             {
-                DbCommand command = connection.CreateCommand();
-
-                DbTransaction transaction = null;
-
-                try
+                foreach (Action<DbCommand> commandAction in commandActions)
                 {
-                    connection.Open();
-                    transaction = connection.BeginTransaction(isolationLevel);
-                    command.Transaction = transaction;
-
-                    foreach (Action<DbCommand> commandAction in commandActions)
-                    {
-                        commandAction.Invoke(command);
-                        command.ExecuteNonQuery();
-                        command.Parameters.Clear();
-                    }
-
-                    transaction.Commit();
+                    commandAction.Invoke(command);
+                    command.ExecuteNonQuery();
+                    command.Parameters.Clear();
                 }
-                catch (Exception e)
-                {
-                    transaction?.Rollback();
 
-                    if (onCommandFailed != null) onCommandFailed.Invoke(command.CommandText);
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
 
-                    throw;
-                }
-                finally
-                {
-                    connection.Close();
-                }
+                if (onCommandFailed != null) onCommandFailed.Invoke(command.CommandText);
+
+                throw;
+            }
+            finally
+            {
+                connection.Close();
+                connection.Dispose();
+                command.Dispose();
+                transaction.Dispose();
             }
         }
 
@@ -245,18 +256,18 @@ namespace Data.Sql
         {
             if (!commandActions.Any()) return;
 
-            using DbConnection connection = _provider.CreateConnection();
+            DbConnection connection = _provider.CreateConnection();
 
             DbCommand command = connection.CreateCommand();
 
-            DbTransaction? transaction = default;
+            await connection.OpenAsync(token);
+
+            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, token);
+
+            command.Transaction = transaction;
 
             try
             {
-                await connection.OpenAsync(token);
-                transaction = await connection.BeginTransactionAsync(isolationLevel, token);
-                command.Transaction = transaction;
-
                 foreach (Action<DbCommand> commandAction in commandActions)
                 {
                     commandAction.Invoke(command);
@@ -268,10 +279,7 @@ namespace Data.Sql
             }
             catch
             {
-                if(transaction != null)
-                {
-                    await transaction.RollbackAsync(token);
-                }
+                await transaction.RollbackAsync(token);
 
                 if (onCommandFailed != null) onCommandFailed.Invoke(command.CommandText);
 
@@ -280,6 +288,9 @@ namespace Data.Sql
             finally
             {
                 await connection.CloseAsync();
+                await connection.DisposeAsync();
+                await command.DisposeAsync();
+                await transaction.DisposeAsync();
             }
         }
 
@@ -288,23 +299,22 @@ namespace Data.Sql
             if (collection.FirstOrDefault() == null) return;
 
             DbConnection connection = _provider.CreateConnection();
-            DbTransaction transaction = default;
             DbCommand command = connection.CreateCommand();
+
+            connection.Open();
+            
+            DbTransaction transaction = connection.BeginTransaction(isolationLevel);
+
+            command.Transaction = transaction;
 
             T[] copy = collection.ToArray();
 
             int count = copy.Length;
 
-            T current = default;
+            T current = default!;
 
             try
             {
-                connection.Open();
-
-                transaction = connection.BeginTransaction(isolationLevel);
-
-                command.Transaction = transaction;
-
                 commandInitializer.Invoke(command);
 
                 for (int i = 0; i != count; ++i)
@@ -317,7 +327,7 @@ namespace Data.Sql
 
                 transaction.Commit();
             }
-            catch (Exception e)
+            catch
             {
                 transaction.Rollback();
 
@@ -328,8 +338,9 @@ namespace Data.Sql
             finally
             {
                 connection.Close();
-                command.Dispose();
                 connection.Dispose();
+                command.Dispose();
+                transaction.Dispose();
             }
         }
 
@@ -338,8 +349,13 @@ namespace Data.Sql
             if (!collection.Any()) return;
 
             DbConnection connection = _provider.CreateConnection();
-            DbTransaction? transaction = default;
             DbCommand command = connection.CreateCommand();
+
+            await connection.OpenAsync(token);
+
+            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, token);
+
+            command.Transaction = transaction;
 
             T[] copy = collection.ToArray();
 
@@ -349,12 +365,6 @@ namespace Data.Sql
 
             try
             {
-                await connection.OpenAsync(token);
-
-                transaction = await connection.BeginTransactionAsync(isolationLevel, token);
-
-                command.Transaction = transaction;
-
                 commandInitializer.Invoke(command);
 
                 for (int i = 0; i != count; ++i)
@@ -380,9 +390,10 @@ namespace Data.Sql
             }
             finally
             {
-                connection.Close();
-                command.Dispose();
-                connection.Dispose();
+                await connection.CloseAsync();
+                await connection.DisposeAsync();
+                await command.DisposeAsync();
+                await transaction.DisposeAsync();
             }
         }
 
@@ -393,14 +404,13 @@ namespace Data.Sql
 
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, string query)
         {
-            return Get(mappingMethod, _provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            return Get(mappingMethod, command);
         }
 
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, DbCommand command)
         {
             if (mappingMethod == null) throw new ArgumentNullException(nameof(mappingMethod));
-
-            List<T> temp;
 
             using (DbConnection connection = _provider.CreateConnection())
             {
@@ -410,46 +420,42 @@ namespace Data.Sql
                 {
                     command.Connection.Open();
 
-                    temp = mappingMethod.Invoke(command.ExecuteReader());
+                    return mappingMethod.Invoke(command.ExecuteReader());
                 }
                 finally
                 {
                     command.Connection.Close();
                 }
             }
-
-            return temp;
         }
 
         public IEnumerable<T> Get<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
         {
-            List<T> temp = new();
-
-            using (command)
+            DbConnection connection = command.Connection ??= _provider.CreateConnection();
+            try
             {
-                using DbConnection connection = command.Connection ??= _provider.CreateConnection();
-                try
-                {
-                    connection.Open();
+                List<T> temp = new();
 
-                    IDataReader reader = command.ExecuteReader();
+                connection.Open();
 
-                    while (reader.Read()) temp.Add(dataMapper.CreateMappedInstance(reader));
+                IDataReader reader = command.ExecuteReader();
 
-                }
-                finally
-                {
-                    connection.Close();
-                    command.Connection = null;
-                }
+                while (reader.Read()) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
             }
-
-            return temp;
+            finally
+            {
+                connection.Close();
+                command.Connection = null;
+                connection.Dispose();
+            }
         }
 
         public IEnumerable<T> Get<T>(IDataMapper<T> dataMapper, string query) where T : class, new()
         {
-            return Get(dataMapper, _provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            return Get(dataMapper, command);
         }
 
         public IEnumerable<T> Get<T>(DbCommand command) where T : class, new()
@@ -459,35 +465,36 @@ namespace Data.Sql
 
         public IEnumerable<T> Get<T>(string query) where T : class, new()
         {
-            return Get<T>(_provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            return Get<T>(command);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token) where T : class, new()
         {
-            List<T> temp = new();
-
-            using (DbConnection connection = command.Connection ??= _provider.CreateConnection())
+            DbConnection connection = command.Connection ??= _provider.CreateConnection();
+            try
             {
-                try
-                {
-                    await connection.OpenAsync(token);
+                List<T> temp = new();
 
-                    using DbDataReader reader = await command.ExecuteReaderAsync(token);
-                    while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
-                }
-                finally 
-                {
-                    connection.Close();
-                    command.Connection = null;
-                }
+                await connection.OpenAsync(token);
+
+                using DbDataReader reader = await command.ExecuteReaderAsync(token);
+                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+
+                return temp;
             }
-
-            return temp;
+            finally
+            {
+                command.Connection = null;
+                await connection.CloseAsync();
+                await connection.DisposeAsync();
+            }
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
         {
-            return await GetAsync(dataMapper, _provider.CreateCommand(query), token);
+            using var command = _provider.CreateCommand(query);
+            return await GetAsync(dataMapper, command, token);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
@@ -497,7 +504,8 @@ namespace Data.Sql
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query) where T : class, new()
         {
-            return await GetAsync(dataMapper, _provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            return await GetAsync(dataMapper, command);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(DbCommand command) where T : class, new()
@@ -507,7 +515,8 @@ namespace Data.Sql
 
         public async Task<IEnumerable<T>> GetAsync<T>(string query) where T : class, new()
         {
-            return await GetAsync<T>(_provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            return await GetAsync<T>(command);
         }
 
         public IEnumerable<dynamic> GetDynamic(DbCommand command)
@@ -526,7 +535,7 @@ namespace Data.Sql
 
         public void Iterate<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command) where T : class, new()
         {
-            using DbConnection connection = command.Connection ??= _provider.CreateConnection();
+            DbConnection connection = command.Connection ??= _provider.CreateConnection();
             try
             {
                 connection.Open();
@@ -536,19 +545,21 @@ namespace Data.Sql
             }
             finally
             {
-                connection.Close();
                 command.Connection = null;
+                connection.Close();
+                connection.Dispose();
             }
         }
 
         public void Iterate<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query) where T : class, new()
         {
-            Iterate(dataMapper, iteratorAction, _provider.CreateCommand(query));
+            using var command = _provider.CreateCommand(query);
+            Iterate(dataMapper, iteratorAction, command);
         }
 
         public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new()
         {
-            using DbConnection connection = command.Connection ??= _provider.CreateConnection();
+            DbConnection connection = command.Connection ??= _provider.CreateConnection();
             try
             {
                 await connection.OpenAsync(token);
@@ -562,14 +573,16 @@ namespace Data.Sql
             }
             finally
             { 
-                connection.Close();
                 command.Connection = null;
+                await connection.CloseAsync();
+                await connection.DisposeAsync();
             }
         }
 
         public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken token) where T : class, new()
         {
-            await IterateAsync(dataMapper, iteratorAction, _provider.CreateCommand(query), token);
+            using var command = _provider.CreateCommand(query);
+            await IterateAsync(dataMapper, iteratorAction, command, token);
         }
     }
 }

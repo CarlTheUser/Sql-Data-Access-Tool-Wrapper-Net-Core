@@ -37,7 +37,7 @@ namespace Data.Sql.Provider
 
         public DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[] inputParams = null, DbParameter[] outputParams = null)
         {
-            SqlCommand cmd = new SqlCommand(commandString) { CommandType = commandType };
+            SqlCommand cmd = new(commandString) { CommandType = commandType };
             if (inputParams != null && inputParams.Length > 0) cmd.Parameters.AddRange(inputParams);
             if (outputParams != null && outputParams.Length > 0) cmd.Parameters.AddRange(outputParams);
             return cmd;

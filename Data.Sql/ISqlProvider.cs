@@ -6,17 +6,12 @@ namespace Data.Sql
     public interface ISqlProvider
     {
         string ConnectionString { get; set; }
-
         string ProviderType { get; }
-
         DbConnection CreateConnection();
         DbConnection CreateOpenedConnection();
-
         DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[] inputParams = null, DbParameter[] outputParams = null);
-
         DbDataReader CreateReader(IDbCommand command);
         DbDataReader CreateReader(IDbCommand command, CommandBehavior behavior);
-
         DbParameter CreateInputParameter(string parameterName, object value, DbType dbType = DbType.Object);
         DbParameter CreateInputParameter(InParameterInfo inParameterInfo);
         DbParameter CreateOutputParameter(string parameterName);

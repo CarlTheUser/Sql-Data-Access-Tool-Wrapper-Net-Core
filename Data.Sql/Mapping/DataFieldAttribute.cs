@@ -7,9 +7,9 @@ namespace Data.Sql.Mapping
         public string Column { get; }
         //public Func<object, object> CustomMapping { get; } //C# doesnt allow function pointers as constructor parameter for Attribute https://social.msdn.microsoft.com/Forums/vstudio/en-US/0af37f2c-9dbe-48c0-957d-cf6d7223c6bc/valid-custom-attribute-parameter-type?forum=csharpgeneral
 
-        public Type FieldMapperType { get; }
+        public Type? FieldMapperType { get; }
 
-        public DataFieldAttribute(string column, Type fieldMapperType = null)
+        public DataFieldAttribute(string column, Type? fieldMapperType = null)
         {
             Column = column;
             //CustomMapping = customMapping;

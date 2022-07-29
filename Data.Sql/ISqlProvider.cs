@@ -9,10 +9,10 @@ namespace Data.Sql
         string ProviderType { get; }
         DbConnection CreateConnection();
         DbConnection CreateOpenedConnection();
-        DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[] inputParams = null, DbParameter[] outputParams = null);
+        DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[]? inputParams = null, DbParameter[]? outputParams = null);
         DbDataReader CreateReader(IDbCommand command);
         DbDataReader CreateReader(IDbCommand command, CommandBehavior behavior);
-        DbParameter CreateInputParameter(string parameterName, object value, DbType dbType = DbType.Object);
+        DbParameter CreateInputParameter(string parameterName, object? value, DbType dbType = DbType.Object);
         DbParameter CreateInputParameter(InParameterInfo inParameterInfo);
         DbParameter CreateOutputParameter(string parameterName);
         DbParameter CreateReturnParameter();

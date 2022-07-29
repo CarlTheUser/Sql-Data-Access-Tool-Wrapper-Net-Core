@@ -6,7 +6,7 @@ namespace Data.Sql.Querying
 
     public abstract class QueryFilter
     {
-        public virtual DbParameter[] GetParameters() => null;
+        public virtual DbParameter[]? GetParameters() => null;
 
         public bool UsesParameter { get; protected set; }
 
@@ -14,12 +14,18 @@ namespace Data.Sql.Querying
 
         public QueryFilter And(QueryFilter filterCriterion)
         {
-            return new CompoundQueryFilter(this, filterCriterion, CompoundQueryFilter.LINK_AND);
+            return new CompoundQueryFilter(
+                left: this,
+                right: filterCriterion,
+                link: CompoundQueryFilter.LINK_AND);
         }
 
         public QueryFilter Or(QueryFilter filterCriterion)
         {
-            return new CompoundQueryFilter(this, filterCriterion, CompoundQueryFilter.LINK_OR);
+            return new CompoundQueryFilter(
+                left: this,
+                right: filterCriterion,
+                link: CompoundQueryFilter.LINK_OR);
         }
 
         public QueryFilter CreateBrackets() => new ParenthesizedQueryFilter(this);
@@ -28,9 +34,9 @@ namespace Data.Sql.Querying
 
     internal class CompoundQueryFilter : QueryFilter
     {
-        internal static readonly string LINK_AND = "AND";
+        internal const string LINK_AND = "AND";
 
-        internal static readonly string LINK_OR = "OR";
+        internal const string LINK_OR = "OR";
 
         private QueryFilter LeftFilter { get; }
 
@@ -51,12 +57,12 @@ namespace Data.Sql.Querying
             return $"{LeftFilter.ToSqlClause()} {Link} {RightFilter.ToSqlClause()}";
         }
 
-        public override DbParameter[] GetParameters()
+        public override DbParameter[]? GetParameters()
         {
             if (LeftFilter.UsesParameter && RightFilter.UsesParameter)
-                return LeftFilter.GetParameters().Concat(RightFilter.GetParameters()).ToArray();
-            else if (LeftFilter.UsesParameter) return LeftFilter.GetParameters();
-            else if (RightFilter.UsesParameter) return RightFilter.GetParameters();
+                return LeftFilter.GetParameters()!.Concat(RightFilter.GetParameters()!).ToArray();
+            else if (LeftFilter.UsesParameter) return LeftFilter.GetParameters()!;
+            else if (RightFilter.UsesParameter) return RightFilter.GetParameters()!;
 
             return null;
         }
@@ -73,7 +79,7 @@ namespace Data.Sql.Querying
             UsesParameter = GroupedCriterion.UsesParameter;
         }
 
-        public override DbParameter[] GetParameters()
+        public override DbParameter[]? GetParameters()
         {
             return GroupedCriterion.GetParameters();
         }

@@ -399,7 +399,9 @@ namespace Data.Sql
 
         public SqlTransaction CreateScopedTransaction(IsolationLevel isolationLevel)
         {
-            return new SqlTransaction(_provider.CreateOpenedConnection(), isolationLevel);
+            return new SqlTransaction(
+                connection: _provider.CreateOpenedConnection(),
+                isolationLevel: isolationLevel);
         }
 
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, string query)
@@ -410,8 +412,6 @@ namespace Data.Sql
 
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, DbCommand command)
         {
-            if (mappingMethod == null) throw new ArgumentNullException(nameof(mappingMethod));
-
             using (DbConnection connection = _provider.CreateConnection())
             {
                 command.Connection = connection;
@@ -455,12 +455,12 @@ namespace Data.Sql
         public IEnumerable<T> Get<T>(IDataMapper<T> dataMapper, string query) where T : class, new()
         {
             using var command = _provider.CreateCommand(query);
-            return Get(dataMapper, command);
+            return Get(dataMapper: dataMapper, command: command);
         }
 
         public IEnumerable<T> Get<T>(DbCommand command) where T : class, new()
         {
-            return Get(new ReflectionDataMapper<T>(), command);
+            return Get(dataMapper: new ReflectionDataMapper<T>(), command: command);
         }
 
         public IEnumerable<T> Get<T>(string query) where T : class, new()

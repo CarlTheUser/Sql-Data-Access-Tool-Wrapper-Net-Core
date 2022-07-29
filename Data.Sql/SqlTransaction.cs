@@ -10,9 +10,9 @@ namespace Data.Sql
 {
     public class SqlTransaction : IDisposable
     {
-        private bool disposed = false;
+        private bool _disposed = false;
 
-        private bool transactionFinished = false;
+        private bool _transactionCompleted = false;
 
         private readonly DbTransaction _dbTransaction;
 
@@ -27,7 +27,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             command.Connection = connection;
 
@@ -46,7 +46,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             using (DbCommand command = connection.CreateCommand())
             {
@@ -190,9 +190,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            if (mappingMethod == null) throw new ArgumentNullException(nameof(mappingMethod));
-
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -226,9 +224,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            if (mappingMethod == null) throw new ArgumentNullException(nameof(mappingMethod));
-
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             command.Connection = connection;
 
@@ -260,9 +256,9 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
             command.Connection = connection;
 
@@ -292,9 +288,9 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -328,18 +324,18 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            return Get(new ReflectionDataMapper<T>(), command);
+            return Get(dataMapper: new ReflectionDataMapper<T>(), command: command);
         }
 
         public IEnumerable<T> Get<T>(string query) where T : class, new()
         {
             DisposeCheck();
 
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
-            IDataMapper<T> mapper = new ReflectionDataMapper<T>();
+            var mapper = new ReflectionDataMapper<T>();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -373,7 +369,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             List<T> temp = new();
 
@@ -441,18 +437,21 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            return await GetAsync(new ReflectionDataMapper<T>(), command, token);
+            return await GetAsync(
+                dataMapper: new ReflectionDataMapper<T>(),
+                command: command, 
+                token: token);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(string query, CancellationToken token) where T : class, new()
         {
             DisposeCheck();
 
-            List<T> temp = new List<T>();
+            List<T> temp = new();
 
-            IDataMapper<T> mapper = new ReflectionDataMapper<T>();
+            var mapper = new ReflectionDataMapper<T>();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -486,7 +485,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             command.Connection = connection;
 
@@ -514,7 +513,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -548,7 +547,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             command.Connection = connection;
 
@@ -576,7 +575,7 @@ namespace Data.Sql
         {
             DisposeCheck();
 
-            DbConnection connection = _dbTransaction.Connection;
+            DbConnection connection = _dbTransaction.Connection!;
 
             DbCommand command = connection.CreateCommand();
 
@@ -612,7 +611,7 @@ namespace Data.Sql
 
             _dbTransaction.Commit();
 
-            transactionFinished = true;
+            _transactionCompleted = true;
         }
 
         public async Task CommitAsync(CancellationToken token)
@@ -621,7 +620,7 @@ namespace Data.Sql
 
             await _dbTransaction.CommitAsync(token);
 
-            transactionFinished = true;
+            _transactionCompleted = true;
         }
 
         public void Rollback()
@@ -630,7 +629,7 @@ namespace Data.Sql
 
             _dbTransaction.Rollback();
 
-            transactionFinished = true;
+            _transactionCompleted = true;
         }
 
         public async Task RollbackAsync(CancellationToken token)
@@ -639,34 +638,35 @@ namespace Data.Sql
 
             await _dbTransaction.RollbackAsync(token);
 
-            transactionFinished = true;
+            _transactionCompleted = true;
         }
 
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposed && disposing)
+            if (!_disposed && disposing)
             {
-                if (!transactionFinished)
+                if (!_transactionCompleted)
                 {
                     _dbTransaction.Commit();
 
-                    transactionFinished = true;
+                    _transactionCompleted = true;
                 }
 
                 _dbTransaction.Dispose();
 
-                disposed = true;
+                _disposed = true;
             }
         }
 
         private void DisposeCheck()
         {
-            if (disposed) throw new ObjectDisposedException(typeof(SqlTransaction).Name);
+            if (_disposed) throw new ObjectDisposedException(typeof(SqlTransaction).Name);
         }
     }
 }

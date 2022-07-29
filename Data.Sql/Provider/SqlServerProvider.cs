@@ -35,11 +35,11 @@ namespace Data.Sql.Provider
             return connection;
         }
 
-        public DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[] inputParams = null, DbParameter[] outputParams = null)
+        public DbCommand CreateCommand(string commandString, CommandType commandType = CommandType.Text, DbParameter[]? inputParams = null, DbParameter[]? outputParams = null)
         {
             SqlCommand cmd = new(commandString) { CommandType = commandType };
-            if (inputParams != null && inputParams.Length > 0) cmd.Parameters.AddRange(inputParams);
-            if (outputParams != null && outputParams.Length > 0) cmd.Parameters.AddRange(outputParams);
+            if (inputParams  is { Length: > 0 }) cmd.Parameters.AddRange(inputParams);
+            if (outputParams is { Length: > 0 }) cmd.Parameters.AddRange(outputParams);
             return cmd;
         }
 
@@ -53,7 +53,7 @@ namespace Data.Sql.Provider
             return (DbDataReader)command.ExecuteReader(behavior);
         }
 
-        public DbParameter CreateInputParameter(string parameterName, object value, DbType dbType = DbType.Object)
+        public DbParameter CreateInputParameter(string parameterName, object? value, DbType dbType = DbType.Object)
         {
             return new SqlParameter
             {
@@ -100,13 +100,16 @@ namespace Data.Sql.Provider
 
             return (from property in properties
                     let parameterInfo = property.PropertyType != typeof(InParameterInfo) ? null : property.GetValue(source) as InParameterInfo
-
                     select parameterInfo == null ?
-                    new SqlParameter(parameterPrefix + property.Name, property.GetValue(source) ?? DBNull.Value)
+                    new SqlParameter(
+                        parameterName: parameterPrefix + property.Name,
+                        value: property.GetValue(source) ?? DBNull.Value)
                     {
                         Direction = ParameterDirection.Input
                     } :
-                    new SqlParameter(parameterPrefix + parameterInfo.Name, parameterInfo.Value ?? DBNull.Value)
+                    new SqlParameter(
+                        parameterName: parameterPrefix + parameterInfo.Name,
+                        value: parameterInfo.Value ?? DBNull.Value)
                     {
                         Direction = ParameterDirection.Input,
                         DbType = parameterInfo.DbType

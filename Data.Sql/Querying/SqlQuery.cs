@@ -29,6 +29,6 @@ namespace Data.Sql.Querying
             return this;
         }
 
-        public abstract Task<IEnumerable<T>> ExecuteAsync(CancellationToken token);
+        public abstract Task<IEnumerable<T>> ExecuteAsync(CancellationToken cancellationToken);
     }
 }

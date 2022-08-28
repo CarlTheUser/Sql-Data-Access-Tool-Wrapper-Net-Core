@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -518,7 +519,54 @@ namespace Data.Sql
             using var command = _provider.CreateCommand(query);
             return await GetAsync<T>(command);
         }
+        
+        public async IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command, [EnumeratorCancellation] CancellationToken token = default) where T : class, new()
+        {
+            DbConnection connection = command.Connection ??= _provider.CreateConnection();
+            try
+            {
+                await connection.OpenAsync(token);
 
+                using DbDataReader reader = await command.ExecuteReaderAsync(token);
+
+                while (await reader.ReadAsync(token)) yield return dataMapper.CreateMappedInstance(reader);
+            }
+            finally
+            {
+                command.Connection = null;
+                await connection.CloseAsync();
+                await connection.DisposeAsync();
+            }
+        }
+
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
+        {
+            using var command = _provider.CreateCommand(query);
+            return GetAsyncEnumerable(dataMapper, command, token);
+        }
+
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
+        {
+            return GetAsyncEnumerable(dataMapper, command, CancellationToken.None);
+        }
+
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query) where T : class, new()
+        {
+            using var command = _provider.CreateCommand(query);
+            return GetAsyncEnumerable(dataMapper, command);
+        }
+
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(DbCommand command) where T : class, new()
+        {
+            return GetAsyncEnumerable(new ReflectionDataMapper<T>(), command);
+        }
+
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(string query) where T : class, new()
+        {
+            using var command = _provider.CreateCommand(query);
+            return GetAsyncEnumerable<T>(command);
+        }
+        
         public IEnumerable<dynamic> GetDynamic(DbCommand command)
         {
             throw new NotImplementedException();

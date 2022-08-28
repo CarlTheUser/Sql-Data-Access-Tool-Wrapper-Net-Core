@@ -41,6 +41,12 @@ namespace Data.Sql
         Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query) where T : class, new();
         Task<IEnumerable<T>> GetAsync<T>(DbCommand command) where T : class, new();
         Task<IEnumerable<T>> GetAsync<T>(string query) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token = default) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(DbCommand command) where T : class, new();
+        IAsyncEnumerable<T> GetAsyncEnumerable<T>(string query) where T : class, new();
         void Iterate<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command) where T : class, new();
         void Iterate<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query) where T : class, new();
         Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new();

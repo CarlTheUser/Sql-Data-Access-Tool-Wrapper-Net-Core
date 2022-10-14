@@ -454,17 +454,16 @@ namespace Data.Sql
         public IEnumerable<T> Get<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
         {
             DbConnection connection = command.Connection ??= _provider.CreateConnection();
+
+            connection.Open();
+
+            IDataReader reader = command.ExecuteReader();
+
             try
             {
-                List<T> temp = new();
+                while (reader.Read()) yield return dataMapper.CreateMappedInstance(reader);
 
-                connection.Open();
-
-                IDataReader reader = command.ExecuteReader();
-
-                while (reader.Read()) temp.Add(dataMapper.CreateMappedInstance(reader));
-
-                return temp;
+                reader.Close();
             }
             finally
             {

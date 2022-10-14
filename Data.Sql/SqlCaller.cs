@@ -593,6 +593,7 @@ namespace Data.Sql
         {
             throw new NotImplementedException();
         }
+
         public IEnumerable<dynamic> GetDynamic(string commandString)
         {
             throw new NotImplementedException();

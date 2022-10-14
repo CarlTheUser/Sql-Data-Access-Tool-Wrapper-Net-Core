@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,17 +55,38 @@ namespace Data.Sql
         public async Task<DataTable> QueryAsync(DbCommand command, CancellationToken token)
         {
             DbConnection connection = _provider.CreateConnection();
+
             command.Connection = connection;
+
+            await connection.OpenAsync(token);
+
+            DbDataReader reader = await command.ExecuteReaderAsync(token);
+
             try
             {
-                await connection.OpenAsync(token);
-                using DbDataReader dr = await command.ExecuteReaderAsync(token);
-                DataTable table = new();
-                table.Load(dr);
+                var table = new DataTable();
+
+                int columnCount = reader.FieldCount;
+
+                for (int i = 0; i < columnCount; ++i)
+                {
+                    table.Columns.Add(reader.GetName(i));
+                }
+
+                while (await reader.ReadAsync(token))
+                {
+                    var values = new object[columnCount];
+                    reader.GetValues(values);
+                    table.Rows.Add(values);
+                }
+
+                await reader.CloseAsync();
+
                 return table;
             }
             finally
             {
+                await reader.DisposeAsync();
                 await connection.CloseAsync();
                 await connection.DisposeAsync();
             }

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,15 +51,15 @@ namespace Data.Sql
             return Query(command);
         }
 
-        public async Task<DataTable> QueryAsync(DbCommand command, CancellationToken token)
+        public async Task<DataTable> QueryAsync(DbCommand command, CancellationToken cancellationToken = default)
         {
             DbConnection connection = _provider.CreateConnection();
 
             command.Connection = connection;
 
-            await connection.OpenAsync(token);
+            await connection.OpenAsync(cancellationToken);
 
-            DbDataReader reader = await command.ExecuteReaderAsync(token);
+            DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
 
             try
             {
@@ -73,7 +72,7 @@ namespace Data.Sql
                     table.Columns.Add(reader.GetName(i));
                 }
 
-                while (await reader.ReadAsync(token))
+                while (await reader.ReadAsync(cancellationToken))
                 {
                     var values = new object[columnCount];
                     reader.GetValues(values);
@@ -92,10 +91,10 @@ namespace Data.Sql
             }
         }
 
-        public async Task<DataTable> QueryAsync(string queryString, CancellationToken token)
+        public async Task<DataTable> QueryAsync(string queryString, CancellationToken cancellationToken = default)
         {
             using var command = _provider.CreateCommand(queryString);
-            return await QueryAsync(command, token);
+            return await QueryAsync(command, cancellationToken);
         }
 
         public DataTable? GetSchema(string queryString)
@@ -117,7 +116,7 @@ namespace Data.Sql
             }
         }
 
-        public async Task<DataTable?> GetSchemaAsync(string queryString, CancellationToken token)
+        public async Task<DataTable?> GetSchemaAsync(string queryString, CancellationToken cancellationToken = default)
         {
             DbConnection connection = _provider.CreateConnection();
             DbCommand command = connection.CreateCommand();
@@ -125,9 +124,9 @@ namespace Data.Sql
 
             try
             {
-                await connection.OpenAsync(token);
-                using DbDataReader dr = await command.ExecuteReaderAsync(token);
-                return await dr.GetSchemaTableAsync(token);
+                await connection.OpenAsync(cancellationToken);
+                using DbDataReader dr = await command.ExecuteReaderAsync(cancellationToken);
+                return await dr.GetSchemaTableAsync(cancellationToken);
             }
             finally
             {
@@ -179,10 +178,10 @@ namespace Data.Sql
             }
         }
 
-        public async Task<int> ExecuteNonQueryAsync(string commandString, CancellationToken token)
+        public async Task<int> ExecuteNonQueryAsync(string commandString, CancellationToken cancellationToken = default)
         {
             using var command = _provider.CreateCommand(commandString);
-            return await ExecuteNonQueryAsync(command, token);
+            return await ExecuteNonQueryAsync(command, cancellationToken);
         }
 
         public object? ExecuteScalar(DbCommand command)
@@ -209,15 +208,15 @@ namespace Data.Sql
             return ExecuteScalar(command);
         }
 
-        public async Task<object?> ExecuteScalarAsync(DbCommand command, CancellationToken token)
+        public async Task<object?> ExecuteScalarAsync(DbCommand command, CancellationToken cancellationToken = default)
         {
             DbConnection connection = _provider.CreateConnection();
             command.Connection = connection;
             try
             {
-                await connection.OpenAsync(token);
+                await connection.OpenAsync(cancellationToken);
 
-                return await command.ExecuteScalarAsync(token);
+                return await command.ExecuteScalarAsync(cancellationToken);
             }
             finally
             {
@@ -227,10 +226,10 @@ namespace Data.Sql
             }
         }
 
-        public async Task<object?> ExecuteScalarAsync(string queryString, CancellationToken token)
+        public async Task<object?> ExecuteScalarAsync(string queryString, CancellationToken cancellationToken = default)
         {
             using var command = _provider.CreateCommand(queryString);
-            return await ExecuteScalarAsync(command, token);
+            return await ExecuteScalarAsync(command, cancellationToken);
         }
 
         public void Transact(IsolationLevel isolationLevel, Queue<Action<DbCommand>> commandActions, Action<string> onCommandFailed)
@@ -275,7 +274,7 @@ namespace Data.Sql
             }
         }
 
-        public async Task TransactAsync(IsolationLevel isolationLevel, Queue<Action<DbCommand>> commandActions, Action<string> onCommandFailed, CancellationToken token)
+        public async Task TransactAsync(IsolationLevel isolationLevel, Queue<Action<DbCommand>> commandActions, Action<string> onCommandFailed, CancellationToken cancellationToken = default)
         {
             if (!commandActions.Any()) return;
 
@@ -283,9 +282,9 @@ namespace Data.Sql
 
             DbCommand command = connection.CreateCommand();
 
-            await connection.OpenAsync(token);
+            await connection.OpenAsync(cancellationToken);
 
-            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, token);
+            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, cancellationToken);
 
             command.Transaction = transaction;
 
@@ -294,15 +293,15 @@ namespace Data.Sql
                 foreach (Action<DbCommand> commandAction in commandActions)
                 {
                     commandAction.Invoke(command);
-                    await command.ExecuteNonQueryAsync(token);
+                    await command.ExecuteNonQueryAsync(cancellationToken);
                     command.Parameters.Clear();
                 }
 
-                await transaction.CommitAsync(token);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await transaction.RollbackAsync(token);
+                await transaction.RollbackAsync(cancellationToken);
 
                 if (onCommandFailed != null) onCommandFailed.Invoke(command.CommandText);
 
@@ -367,16 +366,16 @@ namespace Data.Sql
             }
         }
 
-        public async Task OperateCollectionAsync<T>(IEnumerable<T> collection, Action<DbCommand> commandInitializer, Action<DbCommand, T> bindingAction, IsolationLevel isolationLevel, Action<T> onItemFail, CancellationToken token)
+        public async Task OperateCollectionAsync<T>(IEnumerable<T> collection, Action<DbCommand> commandInitializer, Action<DbCommand, T> bindingAction, IsolationLevel isolationLevel, Action<T> onItemFail, CancellationToken cancellationToken = default)
         {
             if (!collection.Any()) return;
 
             DbConnection connection = _provider.CreateConnection();
             DbCommand command = connection.CreateCommand();
 
-            await connection.OpenAsync(token);
+            await connection.OpenAsync(cancellationToken);
 
-            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, token);
+            DbTransaction transaction = await connection.BeginTransactionAsync(isolationLevel, cancellationToken);
 
             command.Transaction = transaction;
 
@@ -394,17 +393,17 @@ namespace Data.Sql
                 {
                     current = copy[i];
                     bindingAction.Invoke(command, current);
-                    await command.ExecuteNonQueryAsync(token);
+                    await command.ExecuteNonQueryAsync(cancellationToken);
                     command.Parameters.Clear();
                 }
 
-                await transaction.CommitAsync(token);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
                 if(transaction != null)
                 {
-                    await transaction.RollbackAsync(token);
+                    await transaction.RollbackAsync(cancellationToken);
                 }
 
                 onItemFail.Invoke(current);
@@ -492,17 +491,17 @@ namespace Data.Sql
             return Get<T>(command);
         }
 
-        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken token) where T : class, new()
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command, CancellationToken cancellationToken = default) where T : class, new()
         {
             DbConnection connection = command.Connection ??= _provider.CreateConnection();
             try
             {
                 List<T> temp = new();
 
-                await connection.OpenAsync(token);
+                await connection.OpenAsync(cancellationToken);
 
-                using DbDataReader reader = await command.ExecuteReaderAsync(token);
-                while (await reader.ReadAsync(token)) temp.Add(dataMapper.CreateMappedInstance(reader));
+                using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken)) temp.Add(dataMapper.CreateMappedInstance(reader));
 
                 return temp;
             }
@@ -514,10 +513,10 @@ namespace Data.Sql
             }
         }
 
-        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
+        public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, string query, CancellationToken cancellationToken = default) where T : class, new()
         {
             using var command = _provider.CreateCommand(query);
-            return await GetAsync(dataMapper, command, token);
+            return await GetAsync(dataMapper, command, cancellationToken);
         }
 
         public async Task<IEnumerable<T>> GetAsync<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
@@ -542,16 +541,16 @@ namespace Data.Sql
             return await GetAsync<T>(command);
         }
         
-        public async IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command, [EnumeratorCancellation] CancellationToken token = default) where T : class, new()
+        public async IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command, [EnumeratorCancellation] CancellationToken cancellationToken = default) where T : class, new()
         {
             DbConnection connection = command.Connection ??= _provider.CreateConnection();
             try
             {
-                await connection.OpenAsync(token);
+                await connection.OpenAsync(cancellationToken);
 
-                using DbDataReader reader = await command.ExecuteReaderAsync(token);
+                using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
 
-                while (await reader.ReadAsync(token)) yield return dataMapper.CreateMappedInstance(reader);
+                while (await reader.ReadAsync(cancellationToken)) yield return dataMapper.CreateMappedInstance(reader);
             }
             finally
             {
@@ -561,10 +560,10 @@ namespace Data.Sql
             }
         }
 
-        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query, CancellationToken token) where T : class, new()
+        public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, string query, CancellationToken cancellationToken = default) where T : class, new()
         {
             using var command = _provider.CreateCommand(query);
-            return GetAsyncEnumerable(dataMapper, command, token);
+            return GetAsyncEnumerable(dataMapper, command, cancellationToken);
         }
 
         public IAsyncEnumerable<T> GetAsyncEnumerable<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new()
@@ -598,7 +597,7 @@ namespace Data.Sql
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<dynamic>> GetDynamicAsync(DbCommand command, CancellationToken token)
+        public Task<IEnumerable<dynamic>> GetDynamicAsync(DbCommand command, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -627,16 +626,16 @@ namespace Data.Sql
             Iterate(dataMapper, iteratorAction, command);
         }
 
-        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken token) where T : class, new()
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, DbCommand command, CancellationToken cancellationToken = default) where T : class, new()
         {
             DbConnection connection = command.Connection ??= _provider.CreateConnection();
             try
             {
-                await connection.OpenAsync(token);
+                await connection.OpenAsync(cancellationToken);
 
-                using DbDataReader reader = await command.ExecuteReaderAsync(token);
+                using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
 
-                while (await reader.ReadAsync(token))
+                while (await reader.ReadAsync(cancellationToken))
                 {
                     iteratorAction.Invoke(dataMapper.CreateMappedInstance(reader));
                 }
@@ -649,10 +648,10 @@ namespace Data.Sql
             }
         }
 
-        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken token) where T : class, new()
+        public async Task IterateAsync<T>(IDataMapper<T> dataMapper, Action<T> iteratorAction, string query, CancellationToken cancellationToken = default) where T : class, new()
         {
             using var command = _provider.CreateCommand(query);
-            await IterateAsync(dataMapper, iteratorAction, command, token);
+            await IterateAsync(dataMapper, iteratorAction, command, cancellationToken);
         }
     }
 }

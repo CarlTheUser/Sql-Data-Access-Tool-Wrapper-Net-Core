@@ -551,6 +551,8 @@ namespace Data.Sql
                 using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
 
                 while (await reader.ReadAsync(cancellationToken)) yield return dataMapper.CreateMappedInstance(reader);
+
+                await reader.CloseAsync();
             }
             finally
             {

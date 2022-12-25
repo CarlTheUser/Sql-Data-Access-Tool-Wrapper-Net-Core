@@ -29,6 +29,7 @@ namespace Data.Sql
         void OperateCollection<T>(IEnumerable<T> collection, Action<DbCommand> commandInitializer, Action<DbCommand, T> bindingAction, IsolationLevel isolationLevel, Action<T> onItemFail);
         Task OperateCollectionAsync<T>(IEnumerable<T> collection, Action<DbCommand> commandInitializer, Action<DbCommand, T> bindingAction, IsolationLevel isolationLevel, Action<T> onItemFail, CancellationToken cancellationToken = default);
         SqlTransaction CreateScopedTransaction(IsolationLevel isolationLevel);
+        Task<SqlTransaction> CreateScopedTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
         IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, string query);
         IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, DbCommand command);
         IEnumerable<T> Get<T>(IDataMapper<T> dataMapper, DbCommand command) where T : class, new();

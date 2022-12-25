@@ -426,6 +426,13 @@ namespace Data.Sql
                 isolationLevel: isolationLevel);
         }
 
+        public async Task<SqlTransaction> CreateScopedTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
+        {
+            var connection = _provider.CreateOpenedConnection();
+
+            return new SqlTransaction(transaction: await connection.BeginTransactionAsync(cancellationToken: cancellationToken));
+        }
+
         public IEnumerable<T> Get<T>(Func<IDataReader, List<T>> mappingMethod, string query)
         {
             using var command = _provider.CreateCommand(query);

@@ -651,13 +651,6 @@ namespace Data.Sql
         {
             if (!_disposed && disposing)
             {
-                if (!_transactionCompleted)
-                {
-                    _dbTransaction.Commit();
-
-                    _transactionCompleted = true;
-                }
-
                 _dbTransaction.Dispose();
 
                 _disposed = true;

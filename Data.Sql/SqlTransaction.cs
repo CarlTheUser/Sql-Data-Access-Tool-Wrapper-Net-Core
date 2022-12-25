@@ -12,8 +12,6 @@ namespace Data.Sql
     {
         private bool _disposed = false;
 
-        private bool _transactionCompleted = false;
-
         private readonly DbTransaction _dbTransaction;
 
         public SqlTransaction(DbConnection connection, IsolationLevel isolationLevel)
@@ -21,6 +19,11 @@ namespace Data.Sql
             if (connection.State != ConnectionState.Open) connection.Open();
 
             _dbTransaction = connection.BeginTransaction(isolationLevel);
+        }
+
+        public SqlTransaction(DbTransaction transaction)
+        {
+            _dbTransaction = transaction;
         }
 
         public int ExecuteNonQuery(DbCommand command)
@@ -610,8 +613,6 @@ namespace Data.Sql
             DisposeCheck();
 
             _dbTransaction.Commit();
-
-            _transactionCompleted = true;
         }
 
         public async Task CommitAsync(CancellationToken token)
@@ -619,8 +620,6 @@ namespace Data.Sql
             DisposeCheck();
 
             await _dbTransaction.CommitAsync(token);
-
-            _transactionCompleted = true;
         }
 
         public void Rollback()
@@ -628,8 +627,6 @@ namespace Data.Sql
             DisposeCheck();
 
             _dbTransaction.Rollback();
-
-            _transactionCompleted = true;
         }
 
         public async Task RollbackAsync(CancellationToken token)
@@ -637,8 +634,6 @@ namespace Data.Sql
             DisposeCheck();
 
             await _dbTransaction.RollbackAsync(token);
-
-            _transactionCompleted = true;
         }
 
         public void Dispose()
